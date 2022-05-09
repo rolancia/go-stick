@@ -5,12 +5,16 @@ import (
 )
 
 func Spin(spinCtx context.Context, ch chan context.Context, bunch BunchType) error {
+	cfg := defaultConfig
+	if Has(spinCtx, configCtxKey("")) {
+		cfg = GetFrom[Config](spinCtx, configCtxKey(""))
+	}
 	for {
 		select {
 		case <-spinCtx.Done():
 			return spinCtx.Err()
 		case ctx := <-ch:
-			go func() {
+			cfg.Worker(func() {
 				defer func() {
 					for _, f := range bunch.defers {
 						ctx = f(ctx)
@@ -23,7 +27,7 @@ func Spin(spinCtx context.Context, ch chan context.Context, bunch BunchType) err
 					}
 					ctx = stick.Handle(ctx)
 				}
-			}()
+			})
 		}
 	}
 }
