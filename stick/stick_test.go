@@ -12,7 +12,8 @@ import (
 
 func TestStick(t *testing.T) {
 	bunch := stick.Bunch().
-		Defer(func(ctx context.Context) context.Context {
+		Defer(func(ctx context.Context, err error) context.Context {
+			t.Error(err)
 			if v := recover(); v != nil {
 				t.Error(v)
 			}

@@ -6,8 +6,8 @@ import (
 
 func Spin(spinCtx context.Context, ch chan context.Context, bunch BunchType) error {
 	cfg := defaultConfig
-	if Has(spinCtx, ConfigCtxKey()) {
-		cfg = GetFrom[Config](spinCtx, ConfigCtxKey())
+	if Has(spinCtx, ConfigCtxKey("")) {
+		cfg = GetConfigFrom(spinCtx)
 	}
 	for {
 		select {
@@ -15,13 +15,13 @@ func Spin(spinCtx context.Context, ch chan context.Context, bunch BunchType) err
 			return spinCtx.Err()
 		case ctx := <-ch:
 			cfg.Worker(func() {
+				var err error
 				defer func() {
 					for _, f := range bunch.defers {
-						ctx = f(ctx)
+						ctx = f(ctx, err)
 					}
 				}()
 
-				var err error
 				for _, stick := range bunch.sticks {
 					if stick.Ignore(ctx, err) {
 						continue
@@ -39,7 +39,7 @@ func Bunch() BunchType {
 
 type BunchType struct {
 	sticks []Stick
-	defers []func(ctx context.Context) context.Context
+	defers []func(ctx context.Context, err error) context.Context
 }
 
 func (b BunchType) I(stick Stick) BunchType {
@@ -52,7 +52,7 @@ func (b BunchType) L(branch BunchType) BunchType {
 	return b
 }
 
-func (b BunchType) Defer(fn func(ctx context.Context) context.Context) BunchType {
+func (b BunchType) Defer(fn func(ctx context.Context, err error) context.Context) BunchType {
 	b.defers = append(b.defers, fn)
 	return b
 }
