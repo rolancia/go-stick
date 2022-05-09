@@ -6,8 +6,8 @@ import (
 
 func Spin(spinCtx context.Context, ch chan context.Context, bunch BunchType) error {
 	cfg := defaultConfig
-	if Has(spinCtx, configCtxKey("")) {
-		cfg = GetFrom[Config](spinCtx, configCtxKey(""))
+	if Has(spinCtx, ConfigCtxKey()) {
+		cfg = GetFrom[Config](spinCtx, ConfigCtxKey())
 	}
 	for {
 		select {
@@ -21,11 +21,12 @@ func Spin(spinCtx context.Context, ch chan context.Context, bunch BunchType) err
 					}
 				}()
 
+				var err error
 				for _, stick := range bunch.sticks {
-					if stick.Ignore(ctx) {
+					if stick.Ignore(ctx, err) {
 						continue
 					}
-					ctx = stick.Handle(ctx)
+					ctx, err = stick.Handle(ctx, err)
 				}
 			})
 		}
@@ -57,22 +58,22 @@ func (b BunchType) Defer(fn func(ctx context.Context) context.Context) BunchType
 }
 
 type Stick interface {
-	Ignore(ctx context.Context) bool
-	Handle(ctx context.Context) context.Context
+	Ignore(ctx context.Context, err error) bool
+	Handle(ctx context.Context, err error) (context.Context, error)
 }
 
-func Straw(fn func(ctx context.Context) context.Context) Stick {
+func Straw(fn func(ctx context.Context, err error) (context.Context, error)) Stick {
 	return StrawType{fn: fn}
 }
 
 type StrawType struct {
-	fn func(ctx context.Context) context.Context
+	fn func(ctx context.Context, err error) (context.Context, error)
 }
 
-func (StrawType) Ignore(_ context.Context) bool {
+func (StrawType) Ignore(_ context.Context, _ error) bool {
 	return false
 }
 
-func (s StrawType) Handle(ctx context.Context) context.Context {
-	return s.fn(ctx)
+func (s StrawType) Handle(ctx context.Context, err error) (context.Context, error) {
+	return s.fn(ctx, err)
 }

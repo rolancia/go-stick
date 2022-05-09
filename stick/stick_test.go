@@ -26,11 +26,11 @@ func TestStick(t *testing.T) {
 			I(Add{5}).
 			I(Add{6})).
 		I(Add{7}).
-		I(stick.Straw(func(ctx context.Context) context.Context {
+		I(stick.Straw(func(ctx context.Context, _ error) (context.Context, error) {
 			v := stick.GetFrom[int](ctx, valCtxKey(""))
 			t.Log(v)
 			assert.Equal(t, (7*8)/2, v)
-			return ctx
+			return ctx, nil
 		}))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -60,12 +60,12 @@ type Add struct {
 	Val int
 }
 
-func (s Add) Ignore(ctx context.Context) bool {
-	return !stick.Has(ctx, valCtxKey(""))
+func (s Add) Ignore(ctx context.Context, err error) bool {
+	return err != nil && !stick.Has(ctx, valCtxKey(""))
 }
 
-func (s Add) Handle(ctx context.Context) context.Context {
+func (s Add) Handle(ctx context.Context, _ error) (context.Context, error) {
 	v := stick.GetFrom[int](ctx, valCtxKey(""))
 	v += s.Val
-	return stick.With(ctx, valCtxKey(""), v)
+	return stick.With(ctx, valCtxKey(""), v), nil
 }
